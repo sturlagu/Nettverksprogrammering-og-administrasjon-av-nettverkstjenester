@@ -1,0 +1,286 @@
+<!doctype html>
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="stylesheet.css">
+    <title>AJAX-klient</title>
+</head>
+<body>
+    <h1>Biblioteket</h1>
+<form method=POST>
+    <div class="container">
+    <input type="text" placeholder="brukerid" name="brukerid">
+    <input type="password" placeholder="passord" name="passord">
+    <button type="button" onclick="login(brukerid.value, passord.value)">Login</button>
+    <button type="button" onclick="logout()">Logout</button>
+    <p id="output"></p>
+    </div>
+</form>
+
+<form>
+    <h4>LEGG TIL / REDIGER / SLETT / SØK</h4>
+    <select name=table>
+        <option value="forfatter">Forfatter</option>
+        <option value="bok">Bok</option>
+    </select><br><br>
+    <input type="text" placeholder="Forfatter ID / Bok ID" name="inputID"><br>
+    <input type="text" placeholder="Fornavn / Tittel" name="param1"><br>
+    <input type="text" placeholder="Etternavn / Forfatter ID" name="param2"><br>
+    <input type="text" placeholder="Nasjonalitet" name="param3"><br><br>
+    <button type="button" onclick="get(table.value, inputID.value)">SØK</button>
+    <button type="button" onclick="post(table.value, inputID.value, param1.value, param2.value, param3.value)">LEGG TIL</button>
+    <button type="button" onclick="put(table.value, inputID.value, param1.value, param2.value, param3.value)">REDIGER</button>
+    <button type="button" onclick="del(table.value, inputID.value)">SLETT {ID}</button>
+    <button type="button" onclick="delAll(table.value)">SLETT ALT</button>
+    <p id="data"></p>
+</form>
+<input type="button" value="hent side" onClick="showAndroidToast('Hello Android!')" />
+<script type="text/javascript">
+    function showAndroidToast(toast) {
+        Android.showToast(toast);
+    }
+</script>
+<!-- AJAX-klient scripts -->
+<!-- LOGIN -->
+<script>
+    function login(brukerid, passord){
+        var XML="<?xml version=1.0 encoding=UTF-8?>" +
+                "<loginform><brukerid>"+brukerid+
+                "</brukerid><passord>"+passord+
+                "</passord></loginform>";
+        var xhttp = new XMLHttpRequest(),
+            method = "POST",
+            url = "/login";
+        xhttp.onreadystatechange = function () {
+            // Hvis request er ferdig (4) og status OK (200)
+            if (this.readyState == 4 && this.status == 200) {
+                document.getElementById("output").innerHTML = this.responseText;
+            }
+        };
+        xhttp.open(method, url);
+        xhttp.setRequestHeader('Content-type', 'text/xml');
+        xhttp.send(XML);
+    }
+</script>
+<!-- LOGOUT -->
+<script>
+    function logout(){
+        var xhttp = new XMLHttpRequest(),
+        method = "DELETE",
+        url = "/logout";
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                document.getElementById("output").innerHTML = this.responseText;
+            }
+        };
+        xhttp.open(method, url);
+        xhttp.withCredentials = true;
+        xhttp.send();
+    }
+</script>
+<!-- GET -->
+<script>
+    function get(table, inputID) {
+        if (table == "forfatter" && typeof inputID !== 'undefined') {
+            var xhttp = new XMLHttpRequest(),
+                method = "GET",
+                url = "/forfatter/" + inputID;
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.send();
+        } else if(table == "bok" && typeof inputID !== 'undefined') {
+            var xhttp = new XMLHttpRequest(),
+                method = "GET",
+                url = "/bok/" + inputID;
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.send();
+        }else if(table == "forfatter") {
+            var xhttp = new XMLHttpRequest(),
+                method = "GET",
+                url = "/forfatter";
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.send();
+        } else if(table == "bok") {
+            var xhttp = new XMLHttpRequest(),
+                method = "GET",
+                url = "/bok";
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.send();
+        }     
+    }
+</script>
+<!-- POST -->
+<script>
+    function post(table, inputID, param1, param2, param3) {
+        if (table == "forfatter") {
+            var XML="<?xml version=1.0 encoding=UTF-8?>" +
+                    "<info><forfatterid>"+inputID+
+                    "</forfatterid><fornavn>"+param1+
+                    "</fornavn><etternavn>"+param2+
+                    "</etternavn><nasjonalitet>"+param3+
+                    "</nasjonalitet></info>";
+            var xhttp = new XMLHttpRequest(),
+                method = "POST",
+                url = "/forfatter";
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.setRequestHeader('Content-type', 'text/xml');
+            xhttp.send(XML);   
+        } else {
+            var XML="<?xml version=1.0 encoding=UTF-8?>" +
+                    "<info><bokid>"+inputID+
+                    "</bokid><tittel>"+param1+
+                    "</tittel><forfatterid>"+param2+
+                    "</forfatterid></info>";
+            var xhttp = new XMLHttpRequest(),
+                method = "POST",
+                url = "/bok";
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+
+            xhttp.open(method, url);
+            xhttp.setRequestHeader('Content-type', 'text/xml');
+            xhttp.withCredentials = true;
+            xhttp.send(XML);    
+        }
+    
+    }    
+</script>
+<!-- PUT -->
+<script>
+    function put(table, inputID, param1, param2, param3) {
+        if (table == "forfatter") {
+            var XML="<?xml version=1.0 encoding=UTF-8?>" +
+                    "<info><forfatterid>"+inputID+
+                    "</forfatterid><fornavn>"+param1+
+                    "</fornavn><etternavn>"+param2+
+                    "</etternavn><nasjonalitet>"+param3+
+                    "</nasjonalitet></info>";
+            var xhttp = new XMLHttpRequest(),
+                method = "PUT",
+                url = "/forfatter";
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.setRequestHeader('Content-type', 'text/xml');
+            xhttp.withCredentials = true;
+            xhttp.send(XML);
+        } else {
+            var XML="<?xml version=1.0 encoding=UTF-8?>" +
+                    "<info><bokid>"+inputID+
+                    "</bokid><tittel>"+param1+
+                    "</tittel><forfatterid>"+param2+
+                    "</forfatterid></info>";
+            var xhttp = new XMLHttpRequest(),
+                method = "PUT",
+                url = "/bok";
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.setRequestHeader('Content-type', 'text/xml');
+            xhttp.withCredentials = true;
+            xhttp.send(XML);   
+        }
+    }
+</script>
+<!-- DELETE -->
+<script>
+    function del(table, inputID) {
+        if (table == "forfatter") {
+            var XML="<?xml version=1.0 encoding=UTF-8?>" +
+                    "<info><forfatterid>"+inputID+
+                    "</forfatterid></info>";
+            var xhttp = new XMLHttpRequest(),
+                method = "DELETE",
+                url = "/forfatter";
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.setRequestHeader('Content-type', 'text/xml');
+            xhttp.withCredentials = true;
+            xhttp.send(XML);
+        } else {
+            var XML="<?xml version=1.0 encoding=UTF-8?>" +
+                    "<info><bokid>"+inputID+
+                    "</bokid></info>";
+            var xhttp = new XMLHttpRequest(),
+                method = "DELETE",
+                url = "/bok";
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.setRequestHeader('Content-type', 'text/xml');
+            xhttp.withCredentials = true;
+            xhttp.send(XML);
+        }
+    }    
+</script>
+<!-- DELETE -->
+<script>
+    function delAll(table) {
+        if (table == "forfatter") {
+            var xhttp = new XMLHttpRequest(),
+                method = "DELETE",
+                url = "/forfatterall";
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.withCredentials = true;
+            xhttp.send();
+        } else {
+            var xhttp = new XMLHttpRequest(),
+                method = "DELETE",
+                url = "/bokall";
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("data").innerHTML = this.responseText;
+                }
+            };
+            xhttp.open(method, url);
+            xhttp.withCredentials = true;
+            xhttp.send();
+        }
+    }    
+</script>
+</body>
+</html>

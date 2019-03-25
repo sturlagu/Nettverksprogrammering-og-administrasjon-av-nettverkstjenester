@@ -1,0 +1,33 @@
+form {
+    border: 3px solid #f1f1f1;
+}
+h1 {
+    color: #4f92ff;
+}
+h4 {
+    color: #4f92ff;
+}
+button {
+  background-color: #4f92ff;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  display: inline-block;
+  font-size: 16px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+input {
+  background-color: #e8f0ff;
+}
+#forms {
+  display: block;
+}
+#form1 {
+  float: left;
+  width: 50%;
+}
+#form2 {
+  float: left;
+  width: 50%;
+}

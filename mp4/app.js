@@ -4,29 +4,26 @@ const js2xmlparser   = require("js2xmlparser");
 const sqlite3        = require('sqlite3').verbose();
 var db               = new sqlite3.Database('bokbase.db');
 const md5            = require('md5');
-
 const cookieParser   = require('cookie-parser');
 // Generate a v4 (random) id
 const uuidv4         = require('uuidv4');
 const app            = express();
 const xmlparser      = require('express-xml-bodyparser');
-
+var xsdValidator     = require('libxml-xsd');
+var http             = require('http');
 
 app.use(cookieParser());
 app.use(xmlparser());
+
+
 app.listen(port, () => console.log(`RestAPI listening on port ${port}!`));
 
 // LOGIN (sjekk passord mot hash, og sett sesjonID)
 app.post('/login', (req, res) => { 
     var data = {
-        // xmlparser fungerer ikke? får undefined values
-        brukerID: req.body.brukerID,
-        passord: req.body.passord
+        brukerID: req.body.loginform.brukerid[0],
+        passord: req.body.loginform.passord[0]
     }
-    //res.send("brukerID " + data.brukerID);
-    //res.send("passord" + data.passord);
-    console.log(data.brukerID);
-    console.log(data.passord);
     
     var SQL = `SELECT brukerID, passordHash FROM bruker WHERE brukerID = ?`;
     db.get(SQL, data.brukerID, (err, row) => {
@@ -73,7 +70,7 @@ app.post('/login', (req, res) => {
 app.delete('/logout', (req, res) =>{
     // Henter ut sesjonID
     var data = {
-        sesjonID: req.SessionID
+        sesjonID: req.cookies['SesjonID']
     }
     
     var SQL = 'DELETE FROM sesjon WHERE sesjonID = ?';
@@ -82,7 +79,7 @@ app.delete('/logout', (req, res) =>{
             res.send("select parameters wrong/ or sesjonID gone");
         }
         else{
-            res.send("SesjonID deleted");
+            res.clearCookie('SessionID', { path: '/cgi-bin/' }).send();
         }
     });
 });
@@ -97,8 +94,28 @@ app.get('/forfatter/:forfatterID', (req, res) => {
     var SQL = 'SELECT * FROM forfatter WHERE forfatterID = ?';
     db.all(SQL, data.forfatterID, (err, row) => {
         if(row.length > 0){
-            res.setHeader('content-type', 'text/xml');
-            res.send(js2xmlparser.parse("Forfatter" , row));
+            res.setHeader('content-type', 'application/xml');
+            // Henter xsd fil fra webtjener
+            http.get("http://localhost/respons.xsd").on('response', function (response) {
+                var xsd = '';
+                response.on('data', function (chunk) {
+                    xsd += chunk;
+                });
+                // Her har vi hele xsd filen
+                response.on('end', function () {
+                    // Validerer xml data mot xml schema
+                    //console.log(xsd)
+                    var schema = xsdValidator.parse(xsd);
+                    //console.log(js2xmlparser.parse("forfatter", row))
+                    var validationErrors = schema.validate(js2xmlparser.parse("forfatter", row))
+                    if(validationErrors == null){
+                        res.send(js2xmlparser.parse("forfatter", row));
+                    }
+                    else{
+                        res.send("Validation error");  
+                    }                   
+                });
+            });
         }
         else if(err){
             res.send("Something went wrong!");
@@ -115,7 +132,27 @@ app.get('/forfatter', (req, res) => {
     db.all(SQL, (err, row) => {
         if(row.length > 0){
             res.setHeader('content-type', 'text/xml');
-            res.send(js2xmlparser.parse("Forfatter" , row));
+            // Henter xsd fil fra webtjener
+            http.get("http://localhost/respons.xsd").on('response', function (response) {
+                var xsd = '';
+                response.on('data', function (chunk) {
+                    xsd += chunk;
+                });
+                // Her har vi hele xsd filen
+                response.on('end', function () {
+                    // Validerer xml data mot xml schema
+                    //console.log(xsd)
+                    var schema = xsdValidator.parse(xsd);
+                    //console.log(js2xmlparser.parse("forfatter", row))
+                    var validationErrors = schema.validate(js2xmlparser.parse("forfatter", row))
+                    if(validationErrors == null){
+                        res.send(js2xmlparser.parse("forfatter", row));
+                    }
+                    else{
+                        res.send("Validation error");  
+                    }                   
+                });
+            });
         }
         else if(err){
             res.send("Something went wrong!");
@@ -130,14 +167,14 @@ app.get('/forfatter', (req, res) => {
 app.post('/forfatter', (req, res) => {
     // Data som skal legges til
     var data = {
-        forfatterID: req.body.forfatterID,
-        fornavn: req.body.fornavn,
-        etternavn: req.body.etternavn,
-        nasjonalitet: req.body.nasjonalitet
+        forfatterID: req.body.info.forfatterid[0],
+        fornavn: req.body.info.fornavn[0],
+        etternavn: req.body.info.etternavn[0],
+        nasjonalitet: req.body.info.nasjonalitet[0]
     }
     console.log(data);
     // Validerer at brukeren er logget inn
-    var sesjonID = req.SessionID
+    var sesjonID = req.cookies['SesjonID']
     var SQL = 'SELECT sesjonID FROM sesjon WHERE sesjonID = ?';
     db.get(SQL, sesjonID, (err, row) => {
         if(row != null){
@@ -145,7 +182,7 @@ app.post('/forfatter', (req, res) => {
                 // Brukeren er nå validert
                 // Setter inn data
                 var SQL = `INSERT INTO forfatter(forfatterID, fornavn, etternavn, nasjonalitet) VALUES(?,?,?,?);`;
-                db.run(SQL, data, (err) => {
+                db.run(SQL, [data.forfatterID, data.fornavn, data.etternavn, data.nasjonalitet], (err) => {
                     if(err){
                         console.log("Something went wrong!");
                     } else {
@@ -170,21 +207,21 @@ app.post('/forfatter', (req, res) => {
 app.put('/forfatter', (req, res) => {
     // Data som skal endres til
     var data = {
-        forfatterID: req.body.forfatterID,
-        fornavn: req.body.fornavn,
-        etternavn: req.body.etternavn,
-        nasjonalitet: req.body.nasjonalitet
+        forfatterID: req.body.info.forfatterid[0],
+        fornavn: req.body.info.fornavn[0],
+        etternavn: req.body.info.etternavn[0],
+        nasjonalitet: req.body.info.nasjonalitet[0]
     }
     console.log(data);
     // Validerer at brukeren er logget inn
-    var sesjonID = req.SessionID
+    var sesjonID = req.cookies['SesjonID']
     var SQL = 'SELECT sesjonID FROM sesjon WHERE sesjonID = ?';
     db.get(SQL, sesjonID, (err, row) => {
         if(row != null){
             if(sesjonID == row.sesjonID){
                 // Brukeren er nå validert
                 // Setter inn data hvis det er data som skal oppdateres! (settes ut ifra forfatterID)
-                if (req.body.fornavn) {
+                if (req.body.info.fornavn[0]) {
                     var SQL = `UPDATE forfatter SET fornavn = ? WHERE forfatterID = ?`;
                     var parametere = [data.fornavn, data.forfatterID];
                     db.run(SQL, parametere, (err) => {
@@ -195,7 +232,7 @@ app.put('/forfatter', (req, res) => {
                         }
                     });
                 }
-                else if (req.body.etternavn) {
+                else if (req.body.info.etternavn[0]) {
                     var SQL = `UPDATE forfatter SET etternavn = ? WHERE forfatterID = ?`;
                     var parametere = [data.etternavn, data.forfatterID];
                     db.run(SQL, parametere, (err) => {
@@ -206,7 +243,7 @@ app.put('/forfatter', (req, res) => {
                         }
                     });
                 }
-                else if (req.body.nasjonalitet) {
+                else if (req.body.info.nasjonalitet[0]) {
                     var SQL = `UPDATE forfatter SET nasjonalitet = ? WHERE forfatterID = ?`;
                     var parametere = [data.nasjonalitet, data.forfatterID];
                     db.run(SQL, parametere, (err) => {
@@ -230,20 +267,21 @@ app.put('/forfatter', (req, res) => {
     });
 });
 
-// Slette en post eller alle poster - forfatter
+// Slette en post - forfatter
 app.delete('/forfatter', (req, res) => {
     var data = {
-        forfatterID: req.body.forfatterID
+        forfatterID: req.body.info.forfatterid[0]
     }
     console.log(data);
-    sesjonID = req.SessionID
+    sesjonID = req.cookies['SesjonID']
+    console.log(sesjonID);
     var SQL = `SELECT sesjonID FROM sesjon WHERE sesjonID = ?`;
     db.get(SQL, sesjonID, (err, row) => {
         if(row != null) {
             if (sesjonID == row.sesjonID) {
                 // Brukeren er nå validert
                 // Sletter ønsket data
-                if (req.body.forfatterID) {
+                if (req.body.info.forfatterid[0]) {
     	           var SQL = `DELETE FROM forfatter WHERE forfatterID = ?`;
     	           db.run(SQL, data.forfatterID, (err) => {
         	           if(err) {
@@ -253,24 +291,41 @@ app.delete('/forfatter', (req, res) => {
         	           }
                    });
                 } 
-                // Hvis forfatterID ikke er definert slettes alle
-                else {
-    	           var SQL = `DELETE * FROM forfatter`;
-    	           db.run(SQL, (err) => {
-        	           if(err) {
-            	           console.log("Something went wrong!");
-        	           } else {
-            	           console.log("Tabell forfatter er slettet");
-            	           res.send("Tabell forfatter er slettet");
-        	           }
-    	           });
-                }
             }else {
                 console.log("SesjonID er ikke lik!");
                 res.send("SesjonID har utløpt");
             }
         } 
         else{
+            console.log("ikke logget inn");
+            res.send("ikke logget inn");
+        }
+    }); 
+});
+// Slette alle poster - forfatter
+app.delete('/forfatterall', (req, res) => {
+    sesjonID = req.cookies['SesjonID']
+    console.log(sesjonID);
+    var SQL = `SELECT sesjonID FROM sesjon WHERE sesjonID = ?`;
+    db.get(SQL, sesjonID, (err, row) => {
+        if(row != null) {
+            if (sesjonID == row.sesjonID) {
+                // Brukeren er nå validert
+                // Sletter all data
+                var SQL = `DELETE FROM forfatter`;
+                db.run(SQL, (err) => {
+                    if(err) {
+                        console.log("Something went wrong!");
+                    }else{
+                        console.log("Tabell forfatter er slettet");
+                        res.send("Tabell forfatter er slettet");
+                    }
+                });
+            }else{
+                console.log("SesjonID er ikke lik!");
+                res.send("SesjonID har utløpt");
+            }
+        }else{
             console.log("ikke logget inn");
             res.send("ikke logget inn");
         }
@@ -288,7 +343,26 @@ app.get('/bok/:bokID', (req, res) => {
     db.all(SQL, data.bokID, (err, row) => {
         if(row.length > 0){
             res.setHeader('content-type', 'text/xml');
-            res.send(js2xmlparser.parse("Forfatter" , row));
+            // Henter xsd fil fra webtjener
+            http.get("http://localhost/respons.xsd").on('response', function (response) {
+                var xsd = '';
+                response.on('data', function (chunk) {
+                    xsd += chunk;
+                });
+                // Her har vi hele xsd filen
+                response.on('end', function () {
+                    // Validerer xml data mot xml schema
+                    //console.log(xsd)
+                    var schema = xsdValidator.parse(xsd);
+                    var validationErrors = schema.validate(js2xmlparser.parse("bok", row))
+                    if(validationErrors == null){
+                        res.send(js2xmlparser.parse("forfatter", row));
+                    }
+                    else{
+                        res.send("Validation error");  
+                    }                   
+                });
+            });
         }
         else if(err){
             res.send("Something went wrong!");
@@ -305,7 +379,26 @@ app.get('/bok', (req, res) => {
     db.all(SQL, (err, row) => {
         if(row.length > 0){
             res.setHeader('content-type', 'text/xml');
-            res.send(js2xmlparser.parse("Bok" , row));
+            // Henter xsd fil fra webtjener
+            http.get("http://localhost/respons.xsd").on('response', function (response) {
+                var xsd = '';
+                response.on('data', function (chunk) {
+                    xsd += chunk;
+                });
+                // Her har vi hele xsd filen
+                response.on('end', function () {
+                    // Validerer xml data mot xml schema
+                    //console.log(xsd)
+                    var schema = xsdValidator.parse(xsd);
+                    var validationErrors = schema.validate(js2xmlparser.parse("bok", row))
+                    if(validationErrors == null){
+                        res.send(js2xmlparser.parse("forfatter", row));
+                    }
+                    else{
+                        res.send("Validation error");  
+                    }                   
+                });
+            });
         }
         else if(err){
             res.send("Something went wrong!");
@@ -320,13 +413,14 @@ app.get('/bok', (req, res) => {
 app.post('/bok', (req, res) => {
     // Data som skal legges til
     var data = {
-        bokID: req.body.bokID,
-        tittel: req.body.tittel,
-        forfatterID: req.body.forfatterID
+        bokID: req.body.info.bokid[0],
+        tittel: req.body.info.tittel[0],
+        forfatterID: req.body.info.forfatterid[0]
     }
     console.log(data);
     // Validerer at brukeren er logget inn
-    var sesjonID = req.SessionID
+    var sesjonID = req.cookies['SesjonID']
+    console.log(sesjonID);
     var SQL = 'SELECT sesjonID FROM sesjon WHERE sesjonID = ?';
     db.get(SQL, sesjonID, (err, row) => {
         if(row != null){
@@ -334,7 +428,7 @@ app.post('/bok', (req, res) => {
                 // Brukeren er nå validert
                 // Setter inn data
                 var SQL = `INSERT INTO bok(bokID, tittel, forfatterID) VALUES(?,?,?);`;
-                db.run(SQL, data, (err) => {
+                db.run(SQL, [data.bokID, data.tittel, data.forfatterID], (err) => {
                     if(err){
                         console.log("Something went wrong!");
                     } else {
@@ -359,20 +453,20 @@ app.post('/bok', (req, res) => {
 app.put('/bok', (req, res) => {
     // Data som skal endres til
     var data = {
-        bokID: req.body.bokID,
-        tittel: req.body.tittel,
-        forfatterID: req.body.forfatterID,
+        bokID: req.body.info.bokid[0],
+        tittel: req.body.info.tittel[0],
+        forfatterID: req.body.info.forfatterid[0],
     }
     console.log(data);
     // Validerer at brukeren er logget inn
-    var sesjonID = req.SessionID
+    var sesjonID = req.cookies['SesjonID']
     var SQL = 'SELECT sesjonID FROM sesjon WHERE sesjonID = ?';
     db.get(SQL, sesjonID, (err, row) => {
         if(row != null){
             if(sesjonID == row.sesjonID){
                 // Brukeren er nå validert
                 // Setter inn data hvis det er data som skal oppdateres! (settes ut ifra bokID)
-                if (req.body.tittel) {
+                if (req.body.info.tittel[0]) {
                     var SQL = `UPDATE bok SET tittel = ? WHERE bokID = ?`;
                     var parametere = [data.tittel, data.bokID];
                     db.run(SQL, parametere, (err) => {
@@ -383,7 +477,7 @@ app.put('/bok', (req, res) => {
                         }
                     });
                 }
-                else if (req.body.forfatterID) {
+                else if (req.body.info.forfatterID[0]) {
                     var SQL = `UPDATE bok SET forfatterID = ? WHERE bokID = ?`;
                     var parametere = [data.forfatterID, data.bokID];
                     db.run(SQL, parametere, (err) => {
@@ -410,17 +504,18 @@ app.put('/bok', (req, res) => {
 // Slette en post eller alle poster - BOK
 app.delete('/bok', (req, res) => {
     var data = {
-        bokID: req.body.bokID
+        bokID: req.body.info.bokid[0]
     }
     console.log(data);
-    sesjonID = req.SessionID
+    sesjonID = req.cookies['SesjonID']
+    console.log(sesjonID)
     var SQL = `SELECT sesjonID FROM sesjon WHERE sesjonID = ?`;
     db.get(SQL, sesjonID, (err, row) => {
         if(row != null) {
             if (sesjonID == row.sesjonID) {
                 // Brukeren er nå validert
                 // Sletter ønsket data
-                if (req.body.bokID) {
+                if (req.body.info.bokid[0]) {
     	           var SQL = `DELETE FROM bok WHERE bokID = ?`;
     	           db.run(SQL, data.bokID, (err) => {
         	           if(err) {
@@ -430,24 +525,41 @@ app.delete('/bok', (req, res) => {
         	           }
                    });
                 } 
-                // Hvis bokID ikke er definert slettes alle
-                else {
-    	           var SQL = `DELETE * FROM bok`;
-    	           db.run(SQL, (err) => {
-        	           if(err) {
-            	           console.log("Something went wrong!");
-        	           } else {
-            	           console.log("Tabell bok er slettet");
-            	           res.send("Tabell bok er slettet");
-        	           }
-    	           });
-                }
             }else {
                 console.log("SesjonID er ikke lik!");
                 res.send("SesjonID har utløpt");
             }
         } 
         else{
+            console.log("ikke logget inn");
+            res.send("ikke logget inn");
+        }
+    }); 
+});
+// Slette alle poster - BOK
+app.delete('/bokall', (req, res) => {
+    sesjonID = req.cookies['SesjonID']
+    console.log(sesjonID);
+    var SQL = `SELECT sesjonID FROM sesjon WHERE sesjonID = ?`;
+    db.get(SQL, sesjonID, (err, row) => {
+        if(row != null) {
+            if (sesjonID == row.sesjonID) {
+                // Brukeren er nå validert
+                // Sletter all data
+                var SQL = `DELETE FROM bok`;
+                db.run(SQL, (err) => {
+                    if(err) {
+                        console.log("Something went wrong!");
+                    }else{
+                        console.log("Tabell bok er slettet");
+                        res.send("Tabell bok er slettet");
+                    }
+                });
+            }else{
+                console.log("SesjonID er ikke lik!");
+                res.send("SesjonID har utløpt");
+            }
+        }else{
             console.log("ikke logget inn");
             res.send("ikke logget inn");
         }

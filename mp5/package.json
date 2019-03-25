@@ -1,0 +1,26 @@
+{
+  "name": "mp4",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "body-parser-xml": "^1.1.0",
+    "cookie-parser": "^1.4.4",
+    "express": "^4.16.4",
+    "express-xml-bodyparser": "^0.3.0",
+    "http": "0.0.0",
+    "js2xmlparser": "^4.0.0",
+    "libxml-xsd": "^0.5.2",
+    "libxmljs": "^0.19.5",
+    "md5": "^2.2.1",
+    "request": "^2.88.0",
+    "sqlite3": "^4.0.6",
+    "uuidv4": "^3.0.1"
+  }
+}

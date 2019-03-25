@@ -4,7 +4,7 @@ RUN mkdir -p /restAPI
 WORKDIR /restAPI
 
 RUN npm install
-RUN npm install sqlite3 express js2xmlparser body-parser cookie-parser md5 express-xml-bodyparser uuidv4
+RUN npm install sqlite3 express js2xmlparser body-parser cookie-parser md5 express-xml-bodyparser uuidv4 http libxml-xsd
 
 COPY package.json ./
 

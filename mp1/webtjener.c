@@ -18,14 +18,14 @@ int main (){
     char *file_path;
     FILE *file_pointer;
     FILE *error;
-    // Sett ny root mappe
-    chroot("/var/www/");
     //åpner error.log fil
-    error = fopen("error.log", "a");
+    error = fopen("/var/log/error.log", "a");
     //Redigerer stderr til error fil
     dup2(fileno(error), STDERR_FILENO);
     // lukker åpen fil
     fclose(error);
+    // Sett ny root mappe
+    chroot("/var/www/");
     // Setter opp socket-strukturen for serveren 
     server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); //(IPv4, connection-based, TCP)
     if(server_socket < 0){
